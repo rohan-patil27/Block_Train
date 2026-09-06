@@ -19,21 +19,29 @@ app.add_middleware(
 add_exception_handlers(app)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+from fastapi.responses import FileResponse, JSONResponse
 
 # Serve Frontend static files if they exist (built via `npm run build`)
 frontend_out = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "out"))
 
-@app.get("/debug-path")
-def debug_path():
-    return {
-        "__file__": __file__,
-        "dirname": os.path.dirname(__file__),
-        "frontend_out_path": frontend_out,
-        "exists": os.path.exists(frontend_out),
-        "cwd": os.getcwd(),
-        "listdir_cwd": os.listdir(os.getcwd()) if os.path.exists(os.getcwd()) else [],
-        "listdir_root": os.listdir(os.path.abspath(os.path.join(os.getcwd(), ".."))) if os.path.exists(os.path.abspath(os.path.join(os.getcwd(), ".."))) else []
-    }
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    if request.url.path.startswith(settings.API_V1_STR):
+        return JSONResponse({"detail": "Not found"}, status_code=404)
+        
+    path = request.url.path.strip("/")
+    if not path:
+        path = "index"
+        
+    html_file = os.path.join(frontend_out, f"{path}.html")
+    if os.path.exists(html_file):
+        return FileResponse(html_file)
+        
+    index_file = os.path.join(frontend_out, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+        
+    return JSONResponse({"detail": "Not found"}, status_code=404)
 
 if os.path.exists(frontend_out):
     app.mount("/", StaticFiles(directory=frontend_out, html=True), name="frontend")
