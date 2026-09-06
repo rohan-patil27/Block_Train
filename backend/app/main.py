@@ -20,6 +20,32 @@ add_exception_handlers(app)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 from fastapi.responses import FileResponse, JSONResponse
+from app.db.session import engine, SessionLocal
+from app.models import Base
+from app.models.user import User
+
+# We also need to seed basic users and topology
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    # Check if we need to seed
+    if not db.query(User).filter(User.username == "controller1").first():
+        print("Seeding database...")
+        # Import seed_data from data-gen/seed.py
+        import sys
+        seed_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data-gen"))
+        if seed_dir not in sys.path:
+            sys.path.insert(0, seed_dir)
+        try:
+            import seed
+            seed.seed_data(db)
+        except Exception as e:
+            print("Seeding failed:", e)
+    db.close()
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 # Serve Frontend static files if they exist (built via `npm run build`)
 frontend_out = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "out"))
