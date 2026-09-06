@@ -20,6 +20,6 @@ class Settings(BaseSettings):
         override = os.getenv("DATABASE_URL")
         if override:
             return override
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return "sqlite:///./gatidhara.db"
 
 settings = Settings()
